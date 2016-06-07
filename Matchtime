@@ -1,12 +1,38 @@
 #!/usr/bin/env perl
 use Mojolicious::Lite;
 
-# Documentation browser under "/perldoc"
-plugin 'PODRenderer';
+my $clients = {};
 
 get '/' => sub {
   my $c = shift;
   $c->render(template => 'index');
+};
+
+websocket '/dog' => sub {
+  my $c = shift;
+
+  app->log->debug( sprintf 'Client connected: %s', $c->tx );
+  my $id = sprintf "%s", $c->tx;
+  $clients->{$id} = $c->tx;
+
+  # Opened
+  $c->app->log->debug('WebSocket opened');
+
+  # Allow inactivity indefinitely
+  $c->inactivity_timeout(0);
+
+  # Incoming message
+  $c->on(message => sub {
+    my ($c, $msg) = @_;
+    $c->app->log->debug("incoming: $msg");
+  });
+
+  # Closed
+  $c->on(finish => sub {
+    my ($c, $code, $reason) = @_;
+    $c->app->log->debug("WebSocket closed with status $code");
+    delete $clients->{$id};
+  });
 };
 
 app->start;
@@ -14,14 +40,34 @@ __DATA__
 
 @@ index.html.ep
 % layout 'default';
-% title 'Welcome';
-<h1>Welcome to the Mojolicious real-time web framework!</h1>
-To learn more, you can browse through the documentation
-<%= link_to 'here' => '/perldoc' %>.
+% title 'Mat.chti.me';
+<h1>Mat.chti.me</h1>
+<p id='wow'>wow</p>
 
 @@ layouts/default.html.ep
 <!DOCTYPE html>
 <html>
   <head><title><%= title %></title></head>
-  <body><%= content %></body>
+  <body>
+<script>
+      var ws = new WebSocket('<%= url_for('dog')->to_abs->scheme('wss') %>');
+
+      // Incoming messages
+      ws.onmessage = function (event) {
+        var res = JSON.parse(event.data);
+        document.getElementById('wow').innerHTML = res.wow;
+      };
+
+      // Outgoing messages
+      ws.onopen = function (event) {
+        ws.send('init');
+      };
+
+      // Detect connect close
+      ws.onclose = function (event) {
+        document.getElementById('wow').innerHTML = 'lost connection <a href="javascript:window.location.href=window.location.href">reload</a>';
+      };
+
+    </script>
+  <%= content %>🐄</body>
 </html>
