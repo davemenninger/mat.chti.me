@@ -1,7 +1,19 @@
 #!/usr/bin/env perl
 use Mojolicious::Lite;
+use Mojo::JSON qw(decode_json encode_json);
+use Mojolicious::Plugin::Authentication;
+
+app->plugin(
+  authentication => {
+    autoload_user => 1,
+    load_user => sub { return 1; },
+    validate_user => sub { return 1; },
+  },
+);
 
 my $clients = {};
+
+my $dogs = {};
 
 get '/' => sub {
   my $c = shift;
@@ -14,6 +26,10 @@ websocket '/dog' => sub {
   app->log->debug( sprintf 'Client connected: %s', $c->tx );
   my $id = sprintf "%s", $c->tx;
   $clients->{$id} = $c->tx;
+  app->log->debug( 'id: ' . $id );
+
+  my $name = $c->tx->connection;
+  $dogs->{$id}->{name} = $name;
 
   # Opened
   $c->app->log->debug('WebSocket opened');
@@ -25,6 +41,21 @@ websocket '/dog' => sub {
   $c->on(message => sub {
     my ($c, $msg) = @_;
     $c->app->log->debug("incoming: $msg");
+    $c->app->log->debug( $c->is_user_authenticated );
+    if ( my $j = decode_json $msg )
+    {
+      app->log->debug( $j->{cmd} );
+      if ( $j->{cmd} eq 'AUTHENTICATE' )
+      {
+        $c->authenticate('foo','bar');
+      }
+      if ( $j->{cmd} eq 'DE_AUTHENTICATE' )
+      {
+        $c->logout();
+        $c->session( expires => 1 );
+      }
+    }
+    update_clients();
   });
 
   # Closed
@@ -32,8 +63,24 @@ websocket '/dog' => sub {
     my ($c, $code, $reason) = @_;
     $c->app->log->debug("WebSocket closed with status $code");
     delete $clients->{$id};
+    delete $dogs->{$id};
   });
 };
+
+sub update_clients{
+  my ( %args ) = @_;
+
+  for ( keys %$clients )
+  {
+    $clients->{$_}->send({ json => {
+      wow => $clients->{$_}->connection,
+      dogs => $dogs,
+    }});
+  }
+
+  return;
+}
+
 
 app->start;
 __DATA__
@@ -43,6 +90,9 @@ __DATA__
 % title 'Mat.chti.me';
 <h1>Mat.chti.me</h1>
 <p id='wow'>wow</p>
+<p id='list'>list</p>
+<button id='login' onclick="login();">auth</button>
+<button id='logout' onclick="logout();">deauth</button>
 
 @@ layouts/default.html.ep
 <!DOCTYPE html>
@@ -56,11 +106,21 @@ __DATA__
       ws.onmessage = function (event) {
         var res = JSON.parse(event.data);
         document.getElementById('wow').innerHTML = res.wow;
+        document.getElementById('list').innerHTML = '';
+        for ( var d in res.dogs ) {
+          var dog = document.getElementById(d);
+          if ( ! dog ){
+            dog = document.createElement("div");
+            dog.innerHTML = res.dogs[d].name;
+            dog.id = res.dogs[d].name;
+            document.getElementById('list').appendChild(dog);
+          }
+        }
       };
 
       // Outgoing messages
       ws.onopen = function (event) {
-        ws.send('init');
+        ws.send(JSON.stringify({cmd:'init'}));
       };
 
       // Detect connect close
@@ -68,6 +128,13 @@ __DATA__
         document.getElementById('wow').innerHTML = 'lost connection <a href="javascript:window.location.href=window.location.href">reload</a>';
       };
 
+      function login() {
+        ws.send(JSON.stringify({cmd:'AUTHENTICATE'}));
+      }
+
+      function logout() {
+        ws.send(JSON.stringify({cmd:'DE_AUTHENTICATE'}));
+      }
     </script>
   <%= content %>🐄</body>
 </html>
