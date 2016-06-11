@@ -4,11 +4,20 @@ use Mojo::JSON qw(decode_json encode_json);
 use Mojolicious::Plugin::Authentication;
 
 app->plugin(
-  authentication => {
-    autoload_user => 1,
-    load_user => sub { return 1; },
-    validate_user => sub { return 1; },
-  },
+    authentication => {
+        autoload_user => 1,
+        load_user     => sub {
+            my ( $app, $uid ) = @_;
+            # uid from validate sub, return a user object
+            return $uid;
+        },
+        validate_user => sub {
+            my ( $app, $username, $password, $extradata ) = @_;
+            # return a uid if validated
+            return 1 if ( $username eq 'bender' && $password eq 'bending' );
+            return;
+        },
+    },
 );
 
 my $clients = {};
@@ -16,71 +25,77 @@ my $clients = {};
 my $dogs = {};
 
 get '/' => sub {
-  my $c = shift;
-  $c->render(template => 'index');
+    my $c = shift;
+    $c->render( template => 'index' );
 };
 
 websocket '/dog' => sub {
-  my $c = shift;
+    my $c = shift;
 
-  app->log->debug( sprintf 'Client connected: %s', $c->tx );
-  my $id = sprintf "%s", $c->tx;
-  $clients->{$id} = $c->tx;
-  app->log->debug( 'id: ' . $id );
+    app->log->debug( sprintf 'Client connected: %s', $c->tx );
+    my $id = sprintf "%s", $c->tx;
+    $clients->{$id} = $c->tx;
+    app->log->debug( 'id: ' . $id );
 
-  my $name = $c->tx->connection;
-  $dogs->{$id}->{name} = $name;
+    my $name = $c->tx->connection;
+    $dogs->{$id}->{name} = $name;
 
-  # Opened
-  $c->app->log->debug('WebSocket opened');
+    # Opened
+    $c->app->log->debug('WebSocket opened');
 
-  # Allow inactivity indefinitely
-  $c->inactivity_timeout(0);
+    # Allow inactivity indefinitely
+    $c->inactivity_timeout(0);
 
-  # Incoming message
-  $c->on(message => sub {
-    my ($c, $msg) = @_;
-    $c->app->log->debug("incoming: $msg");
-    $c->app->log->debug( $c->is_user_authenticated );
-    if ( my $j = decode_json $msg )
-    {
-      app->log->debug( $j->{cmd} );
-      if ( $j->{cmd} eq 'AUTHENTICATE' )
-      {
-        $c->authenticate('foo','bar');
-      }
-      if ( $j->{cmd} eq 'DE_AUTHENTICATE' )
-      {
-        $c->logout();
-        $c->session( expires => 1 );
-      }
-    }
-    update_clients();
-  });
+    # Incoming message
+    $c->on(
+        message => sub {
+            my ( $c, $msg ) = @_;
+            $c->app->log->debug("incoming: $msg");
+            $c->app->log->debug( 'is auth: ' . $c->is_user_authenticated );
+            if ( my $j = decode_json $msg ) {
+                app->log->debug( $j->{cmd} );
+                if ( $j->{cmd} eq 'AUTHENTICATE' ) {
+                    $c->authenticate( $j->{name}, $j->{code} );
+                }
+                if ( $j->{cmd} eq 'DE_AUTHENTICATE' ) {
+                    $c->logout();
+                    $c->session( expires => 1 );
+                }
+                $dogs->{ $c->tx }->{is_auth} = $c->is_user_authenticated;
+            }
+            $c->app->log->debug( 'is auth: ' . $c->is_user_authenticated );
+            update_clients();
+        }
+    );
 
-  # Closed
-  $c->on(finish => sub {
-    my ($c, $code, $reason) = @_;
-    $c->app->log->debug("WebSocket closed with status $code");
-    delete $clients->{$id};
-    delete $dogs->{$id};
-  });
+    # Closed
+    $c->on(
+        finish => sub {
+            my ( $c, $code, $reason ) = @_;
+            $c->app->log->debug("WebSocket closed with status $code");
+            delete $clients->{$id};
+            delete $dogs->{$id};
+            update_clients();
+        }
+    );
 };
 
-sub update_clients{
-  my ( %args ) = @_;
+sub update_clients {
+    my (%args) = @_;
 
-  for ( keys %$clients )
-  {
-    $clients->{$_}->send({ json => {
-      wow => $clients->{$_}->connection,
-      dogs => $dogs,
-    }});
-  }
+    for ( keys %$clients ) {
+        $clients->{$_}->send(
+            {
+                json => {
+                    wow  => $clients->{$_}->connection,
+                    dogs => $dogs,
+                }
+            }
+        );
+    }
 
-  return;
+    return;
 }
-
 
 app->start;
 __DATA__
@@ -93,6 +108,8 @@ __DATA__
 <p id='list'>list</p>
 <button id='login' onclick="login();">auth</button>
 <button id='logout' onclick="logout();">deauth</button>
+<input type='text' id='name' value='name'/>
+<input type='password' id='code' value='code'/>
 
 @@ layouts/default.html.ep
 <!DOCTYPE html>
@@ -112,6 +129,7 @@ __DATA__
           if ( ! dog ){
             dog = document.createElement("div");
             dog.innerHTML = res.dogs[d].name;
+            dog.innerHTML += ' ' + res.dogs[d].is_auth;
             dog.id = res.dogs[d].name;
             document.getElementById('list').appendChild(dog);
           }
@@ -129,7 +147,11 @@ __DATA__
       };
 
       function login() {
-        ws.send(JSON.stringify({cmd:'AUTHENTICATE'}));
+        var name = document.getElementById('name').value;
+        var code = document.getElementById('code').value;
+        var cmd = 'AUTHENTICATE';
+        var msg = { 'cmd': cmd, 'name': name, 'code': code };
+        ws.send(JSON.stringify(msg));
       }
 
       function logout() {
