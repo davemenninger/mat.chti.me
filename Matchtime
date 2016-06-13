@@ -39,6 +39,8 @@ websocket '/dog' => sub {
 
     my $name = $c->tx->connection;
     $dogs->{$id}->{name} = $name;
+    $dogs->{$id}->{x} = 10;
+    $dogs->{$id}->{y} = 10;
 
     # Opened
     $c->app->log->debug('WebSocket opened');
@@ -51,7 +53,6 @@ websocket '/dog' => sub {
         message => sub {
             my ( $c, $msg ) = @_;
             $c->app->log->debug("incoming: $msg");
-            $c->app->log->debug( 'is auth: ' . $c->is_user_authenticated );
             if ( my $j = decode_json $msg ) {
                 app->log->debug( $j->{cmd} );
                 if ( $j->{cmd} eq 'AUTHENTICATE' ) {
@@ -61,9 +62,11 @@ websocket '/dog' => sub {
                     $c->logout();
                     $c->session( expires => 1 );
                 }
-                $dogs->{ $c->tx }->{is_auth} = $c->is_user_authenticated;
+                if ( $j->{cmd} eq 'up' ){
+                  $dogs->{$id}->{y} -= 5;
+                }
+              $dogs->{ $c->tx }->{is_auth} = $c->is_user_authenticated;
             }
-            $c->app->log->debug( 'is auth: ' . $c->is_user_authenticated );
             update_clients();
         }
     );
@@ -102,9 +105,15 @@ __DATA__
 
 @@ index.html.ep
 % layout 'default';
-% title 'Mat.chti.me';
-<h1>Mat.chti.me</h1>
+% title 'mat.chti.me';
+<h1>mat.chti.me</h1>
 <p id='wow'>wow</p>
+<button id='up' onclick="up();">up</button>
+<button id='down' onclick="down();">down</button>
+<button id='left' onclick="left();">left</button>
+<button id='right' onclick="right();">right</button>
+<br/>
+<canvas id='map' width='640' height='480'></canvas>
 <p id='list'>list</p>
 <button id='login' onclick="login();">auth</button>
 <button id='logout' onclick="logout();">deauth</button>
@@ -115,15 +124,18 @@ __DATA__
 <!DOCTYPE html>
 <html>
   <head><title><%= title %></title></head>
-  <body>
+  <body onload="draw();">
 <script>
       var ws = new WebSocket('<%= url_for('dog')->to_abs->scheme('wss') %>');
+
+      var dogs = [];
 
       // Incoming messages
       ws.onmessage = function (event) {
         var res = JSON.parse(event.data);
         document.getElementById('wow').innerHTML = res.wow;
         document.getElementById('list').innerHTML = '';
+        dogs = res.dogs;
         for ( var d in res.dogs ) {
           var dog = document.getElementById(d);
           if ( ! dog ){
@@ -134,6 +146,7 @@ __DATA__
             document.getElementById('list').appendChild(dog);
           }
         }
+        draw();
       };
 
       // Outgoing messages
@@ -157,6 +170,29 @@ __DATA__
       function logout() {
         ws.send(JSON.stringify({cmd:'DE_AUTHENTICATE'}));
       }
+
+      function draw() {
+        var canvas = document.getElementById('map');
+        if (canvas.getContext) {
+          var ctx = canvas.getContext("2d");
+
+
+          ctx.fillStyle = "#DDFFDD";
+          ctx.fillRect (0, 0, 640, 480);
+
+          for ( var d in dogs )
+          {
+            ctx.fillStyle = "rgba(0, 0, 200, 0.5)";
+            ctx.fillRect( dogs[d].x, dogs[d].y, 55, 50);
+          }
+        }
+      }
+
+      function up() {
+        msg = { 'cmd': 'up' };
+        ws.send(JSON.stringify(msg));
+      }
+
     </script>
   <%= content %>🐄</body>
 </html>

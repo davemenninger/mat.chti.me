@@ -19,3 +19,4 @@ Yet another mojlicious experiment
 * https://metacpan.org/pod/Mojolicious::Plugin::Authentication
 * https://github.com/crossbario/autobahn-python/tree/master/examples/twisted/websocket/auth_persona
 * https://devcenter.heroku.com/articles/websocket-security
+* http://www.lostdecadegames.com/how-to-make-a-simple-html5-canvas-game/
