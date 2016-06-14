@@ -1,4 +1,5 @@
 #!/usr/bin/env perl
+
 use Mojolicious::Lite;
 use Mojo::JSON qw(decode_json encode_json);
 use Mojolicious::Plugin::Authentication;
@@ -33,14 +34,11 @@ websocket '/dog' => sub {
     my $c = shift;
 
     app->log->debug( sprintf 'Client connected: %s', $c->tx );
-    my $id = sprintf "%s", $c->tx;
+    my $id = sprintf "%s", $c->tx->connection;
     $clients->{$id} = $c->tx;
     app->log->debug( 'id: ' . $id );
 
-    my $name = $c->tx->connection;
-    $dogs->{$id}->{name} = $name;
-    $dogs->{$id}->{x} = 10;
-    $dogs->{$id}->{y} = 10;
+    init_dog( id => $id);
 
     # Opened
     $c->app->log->debug('WebSocket opened');
@@ -55,17 +53,7 @@ websocket '/dog' => sub {
             $c->app->log->debug("incoming: $msg");
             if ( my $j = decode_json $msg ) {
                 app->log->debug( $j->{cmd} );
-                if ( $j->{cmd} eq 'AUTHENTICATE' ) {
-                    $c->authenticate( $j->{name}, $j->{code} );
-                }
-                if ( $j->{cmd} eq 'DE_AUTHENTICATE' ) {
-                    $c->logout();
-                    $c->session( expires => 1 );
-                }
-                if ( $j->{cmd} eq 'up' ){
-                  $dogs->{$id}->{y} -= 5;
-                }
-              $dogs->{ $c->tx }->{is_auth} = $c->is_user_authenticated;
+                do_msg( c => $c , j => $j );
             }
             update_clients();
         }
@@ -82,6 +70,31 @@ websocket '/dog' => sub {
         }
     );
 };
+
+sub do_msg {
+    my (%args) = @_;
+
+    my $c        = $args{c};
+    my $json_msg = $args{j};
+    my $id = $c->tx->connection;
+
+    for ( $json_msg->{cmd}) {
+      if ('AUTHENTICATE') {
+        $c->authenticate( $json_msg->{name}, $json_msg->{code} );
+      }
+      if ('DE_AUTHENTICATE'){
+        $c->logout();
+        $c->session( expires => 1 );
+      }
+      if ('MOVE'){
+        move_dog( id => $id, direction => $json_msg->{direction}, distance => $json_msg->{distance} );
+      }
+    }
+
+    $dogs->{$id}->{is_auth} = $c->is_user_authenticated;
+
+    return;
+}
 
 sub update_clients {
     my (%args) = @_;
@@ -100,6 +113,26 @@ sub update_clients {
     return;
 }
 
+sub init_dog {
+    my (%args) = @_;
+    my $id = $args{id};
+    $dogs->{$id}->{name} = $id;
+    $dogs->{$id}->{x}    = int rand(630) + 10;
+    $dogs->{$id}->{y}    = int rand(470) + 10;
+    return;
+}
+
+sub move_dog {
+  my (%args) = @_;
+
+  $dogs->{$args{id}}->{y} -= ( $args{direction} eq 'up') ? $args{distance} : 0;
+  $dogs->{$args{id}}->{y} += ( $args{direction} eq 'down') ? $args{distance} : 0;
+  $dogs->{$args{id}}->{x} -= ( $args{direction} eq 'left') ? $args{distance} : 0;
+  $dogs->{$args{id}}->{x} += ( $args{direction} eq 'right') ? $args{distance} : 0;
+
+  return;
+}
+
 app->start;
 __DATA__
 
@@ -108,10 +141,10 @@ __DATA__
 % title 'mat.chti.me';
 <h1>mat.chti.me</h1>
 <p id='wow'>wow</p>
-<button id='up' onclick="up();">up</button>
-<button id='down' onclick="down();">down</button>
-<button id='left' onclick="left();">left</button>
-<button id='right' onclick="right();">right</button>
+<button id='up' onclick="move('up');">up</button>
+<button id='down' onclick="move('down');">down</button>
+<button id='left' onclick="move('left');">left</button>
+<button id='right' onclick="move('right');">right</button>
 <br/>
 <canvas id='map' width='640' height='480'></canvas>
 <p id='list'>list</p>
@@ -124,7 +157,7 @@ __DATA__
 <!DOCTYPE html>
 <html>
   <head><title><%= title %></title></head>
-  <body onload="draw();">
+  <body>
 <script>
       var ws = new WebSocket('<%= url_for('dog')->to_abs->scheme('wss') %>');
 
@@ -136,6 +169,7 @@ __DATA__
         document.getElementById('wow').innerHTML = res.wow;
         document.getElementById('list').innerHTML = '';
         dogs = res.dogs;
+        // update_dog_list();
         for ( var d in res.dogs ) {
           var dog = document.getElementById(d);
           if ( ! dog ){
@@ -183,9 +217,14 @@ __DATA__
           for ( var d in dogs )
           {
             ctx.fillStyle = "rgba(0, 0, 200, 0.5)";
-            ctx.fillRect( dogs[d].x, dogs[d].y, 55, 50);
+            ctx.fillRect( dogs[d].x, dogs[d].y, 42, 42);
           }
         }
+      }
+
+      function move(direction){
+        var msg = { 'cmd': 'MOVE', 'direction': direction, 'distance': 5 };
+        ws.send(JSON.stringify(msg));
       }
 
       function up() {
