@@ -25,6 +25,11 @@ my $clients = {};
 
 my $dogs = {};
 
+my $cat = {
+  x => 100,
+  y => 50,
+};
+
 get '/' => sub {
     my $c = shift;
     $c->render( template => 'index' );
@@ -78,16 +83,31 @@ sub do_msg {
     my $json_msg = $args{j};
     my $id = $c->tx->connection;
 
-    for ( $json_msg->{cmd}) {
-      if ('AUTHENTICATE') {
+    given ( $json_msg->{cmd}) {
+      when ('AUTHENTICATE') {
+        app->log->debug('yo1');
         $c->authenticate( $json_msg->{name}, $json_msg->{code} );
       }
-      if ('DE_AUTHENTICATE'){
+      when ('DE_AUTHENTICATE'){
+        app->log->debug('yo2');
         $c->logout();
         $c->session( expires => 1 );
       }
-      if ('MOVE'){
-        move_dog( id => $id, direction => $json_msg->{direction}, distance => $json_msg->{distance} );
+      when ('MOVE'){
+        app->log->debug('yo3');
+        if ( $c->is_user_authenticated ) {
+            move_cat(
+                direction => $json_msg->{direction},
+                distance  => $json_msg->{distance}
+            );
+        }
+        else {
+            move_dog(
+                id        => $id,
+                direction => $json_msg->{direction},
+                distance  => $json_msg->{distance}
+            );
+        }
       }
     }
 
@@ -105,6 +125,7 @@ sub update_clients {
                 json => {
                     wow  => $clients->{$_}->connection,
                     dogs => $dogs,
+                    cat => $cat,
                 }
             }
         );
@@ -129,6 +150,17 @@ sub move_dog {
   $dogs->{$args{id}}->{y} += ( $args{direction} eq 'down') ? $args{distance} : 0;
   $dogs->{$args{id}}->{x} -= ( $args{direction} eq 'left') ? $args{distance} : 0;
   $dogs->{$args{id}}->{x} += ( $args{direction} eq 'right') ? $args{distance} : 0;
+
+  return;
+}
+
+sub move_cat {
+  my (%args) = @_;
+
+  $cat->{y} -= ( $args{direction} eq 'up') ? $args{distance} : 0;
+  $cat->{y} += ( $args{direction} eq 'down') ? $args{distance} : 0;
+  $cat->{x} -= ( $args{direction} eq 'left') ? $args{distance} : 0;
+  $cat->{x} += ( $args{direction} eq 'right') ? $args{distance} : 0;
 
   return;
 }
@@ -162,6 +194,7 @@ __DATA__
       var ws = new WebSocket('<%= url_for('dog')->to_abs->scheme('wss') %>');
 
       var dogs = [];
+      var cat;
 
       // Incoming messages
       ws.onmessage = function (event) {
@@ -169,6 +202,7 @@ __DATA__
         document.getElementById('wow').innerHTML = res.wow;
         document.getElementById('list').innerHTML = '';
         dogs = res.dogs;
+        cat = res.cat;
         // update_dog_list();
         for ( var d in res.dogs ) {
           var dog = document.getElementById(d);
@@ -219,6 +253,9 @@ __DATA__
             ctx.fillStyle = "rgba(0, 0, 200, 0.5)";
             ctx.fillRect( dogs[d].x, dogs[d].y, 42, 42);
           }
+
+          ctx.fillStyle = "rgba(200, 0, 100, 0.5)";
+          ctx.fillRect( cat.x, cat.y, 42, 42);
         }
       }
 
