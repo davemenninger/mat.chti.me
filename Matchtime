@@ -85,16 +85,13 @@ sub do_msg {
 
     given ( $json_msg->{cmd}) {
       when ('AUTHENTICATE') {
-        app->log->debug('yo1');
         $c->authenticate( $json_msg->{name}, $json_msg->{code} );
       }
       when ('DE_AUTHENTICATE'){
-        app->log->debug('yo2');
         $c->logout();
         $c->session( expires => 1 );
       }
       when ('MOVE'){
-        app->log->debug('yo3');
         if ( $c->is_user_authenticated ) {
             move_cat(
                 direction => $json_msg->{direction},
@@ -211,6 +208,11 @@ __DATA__
             dog.innerHTML = res.dogs[d].name;
             dog.innerHTML += ' ' + res.dogs[d].is_auth;
             dog.id = res.dogs[d].name;
+            var img = document.createElement("img");
+            img.src = 'https://gravatar.com/avatar/'+d+'?d=monsterid';
+            img.id = 'img-'+d;
+            img.onload = function () { draw(); };
+            dog.appendChild(img);
             document.getElementById('list').appendChild(dog);
           }
         }
@@ -250,8 +252,8 @@ __DATA__
 
           for ( var d in dogs )
           {
-            ctx.fillStyle = "rgba(0, 0, 200, 0.5)";
-            ctx.fillRect( dogs[d].x, dogs[d].y, 42, 42);
+            var img = document.getElementById('img-'+d);
+            ctx.drawImage(img, dogs[d].x, dogs[d].y);
           }
 
           ctx.fillStyle = "rgba(200, 0, 100, 0.5)";
