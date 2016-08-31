@@ -25,8 +25,8 @@ var ws = new WebSocket('<%= url_for('dog')->to_abs->scheme('wss') %>');
 var dogs = [];
 var cat = {};
 
-var map_width = 640;
-var map_height = 480;
+var map_width = <%= $map->{width} %>;
+var map_height = <%= $map->{height} %>;
 var num_x_cells = 16;
 var num_y_cells = 12;
 var cell_width = map_width / num_x_cells;

@@ -30,13 +30,20 @@ my $cat = {
   y => 5,
 };
 
+my $map = {
+  width => 640,
+  height => 480,
+};
+
 get '/' => sub {
     my $c = shift;
+    $c->stash( map => $map );
     $c->render( template => 'index' );
 };
 
 get '/javascript.js' => sub {
     my $c = shift;
+    $c->stash( map => $map );
     $c->render( template => 'javascript', format => 'js' );
 };
 
@@ -175,7 +182,7 @@ __DATA__
 % title 'mat.chti.me';
 <h1>mat.chti.me</h1>
 <p id='wow'>wow</p>
-<canvas id='map' width='640' height='480'></canvas>
+<canvas id='map' width='<%= $map->{width} %>' height='<%= $map->{height} %>'></canvas>
 <br/>
 <button id='up' onclick="move('up');">up</button>
 <button id='down' onclick="move('down');">down</button>
