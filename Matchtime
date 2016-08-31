@@ -26,13 +26,18 @@ my $clients = {};
 my $dogs = {};
 
 my $cat = {
-  x => 100,
-  y => 50,
+  x => 1,
+  y => 5,
 };
 
 get '/' => sub {
     my $c = shift;
     $c->render( template => 'index' );
+};
+
+get '/javascript.js' => sub {
+    my $c = shift;
+    $c->render( template => 'javascript', format => 'js' );
 };
 
 websocket '/dog' => sub {
@@ -170,12 +175,12 @@ __DATA__
 % title 'mat.chti.me';
 <h1>mat.chti.me</h1>
 <p id='wow'>wow</p>
+<canvas id='map' width='640' height='480'></canvas>
+<br/>
 <button id='up' onclick="move('up');">up</button>
 <button id='down' onclick="move('down');">down</button>
 <button id='left' onclick="move('left');">left</button>
 <button id='right' onclick="move('right');">right</button>
-<br/>
-<canvas id='map' width='640' height='480'></canvas>
 <p id='list'>list</p>
 <button id='login' onclick="login();">auth</button>
 <button id='logout' onclick="logout();">deauth</button>
@@ -187,90 +192,6 @@ __DATA__
 <html>
   <head><title><%= title %></title></head>
   <body>
-<script>
-      var ws = new WebSocket('<%= url_for('dog')->to_abs->scheme('wss') %>');
-
-      var dogs = [];
-      var cat;
-
-      // Incoming messages
-      ws.onmessage = function (event) {
-        var res = JSON.parse(event.data);
-        document.getElementById('wow').innerHTML = res.wow;
-        document.getElementById('list').innerHTML = '';
-        dogs = res.dogs;
-        cat = res.cat;
-        // update_dog_list();
-        for ( var d in res.dogs ) {
-          var dog = document.getElementById(d);
-          if ( ! dog ){
-            dog = document.createElement("div");
-            dog.innerHTML = res.dogs[d].name;
-            dog.innerHTML += ' ' + res.dogs[d].is_auth;
-            dog.id = res.dogs[d].name;
-            var img = document.createElement("img");
-            img.src = 'https://gravatar.com/avatar/'+d+'?d=monsterid';
-            img.id = 'img-'+d;
-            img.onload = function () { draw(); };
-            dog.appendChild(img);
-            document.getElementById('list').appendChild(dog);
-          }
-        }
-        draw();
-      };
-
-      // Outgoing messages
-      ws.onopen = function (event) {
-        ws.send(JSON.stringify({cmd:'init'}));
-      };
-
-      // Detect connect close
-      ws.onclose = function (event) {
-        document.getElementById('wow').innerHTML = 'lost connection <a href="javascript:window.location.href=window.location.href">reload</a>';
-      };
-
-      function login() {
-        var name = document.getElementById('name').value;
-        var code = document.getElementById('code').value;
-        var cmd = 'AUTHENTICATE';
-        var msg = { 'cmd': cmd, 'name': name, 'code': code };
-        ws.send(JSON.stringify(msg));
-      }
-
-      function logout() {
-        ws.send(JSON.stringify({cmd:'DE_AUTHENTICATE'}));
-      }
-
-      function draw() {
-        var canvas = document.getElementById('map');
-        if (canvas.getContext) {
-          var ctx = canvas.getContext("2d");
-
-
-          ctx.fillStyle = "#DDFFDD";
-          ctx.fillRect (0, 0, 640, 480);
-
-          for ( var d in dogs )
-          {
-            var img = document.getElementById('img-'+d);
-            ctx.drawImage(img, dogs[d].x, dogs[d].y);
-          }
-
-          ctx.fillStyle = "rgba(200, 0, 100, 0.5)";
-          ctx.fillRect( cat.x, cat.y, 42, 42);
-        }
-      }
-
-      function move(direction){
-        var msg = { 'cmd': 'MOVE', 'direction': direction, 'distance': 5 };
-        ws.send(JSON.stringify(msg));
-      }
-
-      function up() {
-        msg = { 'cmd': 'up' };
-        ws.send(JSON.stringify(msg));
-      }
-
-    </script>
-  <%= content %>🐄</body>
+    <script src="javascript.js"></script>
+    <%= content %>🐄</body>
 </html>

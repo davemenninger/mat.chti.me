@@ -1,0 +1,176 @@
+document.onreadystatechange = function() {
+    if (document.readyState == "complete") {
+        // document is ready. Do your stuff here
+        var canvas = document.getElementById('map');
+        canvas.addEventListener('mousemove', function(evt) {
+            var mousePos = getMousePos(canvas, evt);
+            var message = 'Selected: ' + selected_cell.x + ',' + selected_cell.y + ' Canvas: ' + canvas.width + ', ' + canvas.height + '';
+            draw();
+        },
+        false);
+        canvas.addEventListener('click', function(event) {
+            selected_cell = {
+                x: Math.floor(mouse_x / cell_width),
+                y: Math.floor(mouse_y / cell_height)
+            };
+            draw();
+        },
+        false);
+        resizeCanvas();
+    }
+};
+
+var ws = new WebSocket('<%= url_for('dog')->to_abs->scheme('wss') %>');
+
+var dogs = [];
+var cat = {};
+
+var map_width = 640;
+var map_height = 480;
+var num_x_cells = 16;
+var num_y_cells = 12;
+var cell_width = map_width / num_x_cells;
+var cell_height = map_height / num_y_cells;
+var mouse_x = 0;
+var mouse_y = 0;
+var selected_cell = {};
+
+window.addEventListener('resize', resizeCanvas, false);
+
+// Incoming messages
+ws.onmessage = function(event) {
+    var res = JSON.parse(event.data);
+    document.getElementById('wow').innerHTML = res.wow;
+    document.getElementById('list').innerHTML = '';
+    dogs = res.dogs;
+    cat = res.cat;
+    // update_dog_list();
+    for (var d in res.dogs) {
+        var dog = document.getElementById(d);
+        if (!dog) {
+            dog = document.createElement("div");
+            dog.innerHTML = res.dogs[d].name;
+            dog.innerHTML += ' ' + res.dogs[d].is_auth;
+            dog.id = res.dogs[d].name;
+            var img = document.createElement("img");
+            img.src = 'https://gravatar.com/avatar/' + d + '?d=monsterid';
+            img.id = 'img-' + d;
+            img.onload = function() {
+                draw();
+            };
+            dog.appendChild(img);
+            document.getElementById('list').appendChild(dog);
+        }
+    }
+    draw();
+};
+
+// Outgoing messages
+ws.onopen = function(event) {
+    ws.send(JSON.stringify({
+        cmd: 'init'
+    }));
+};
+
+// Detect connect close
+ws.onclose = function(event) {
+    document.getElementById('wow').innerHTML = 'lost connection <a href="javascript:window.location.href=window.location.href">reload</a>';
+};
+
+
+function login() {
+    var name = document.getElementById('name').value;
+    var code = document.getElementById('code').value;
+    var cmd = 'AUTHENTICATE';
+    var msg = {
+        'cmd': cmd,
+        'name': name,
+        'code': code
+    };
+    ws.send(JSON.stringify(msg));
+}
+
+function logout() {
+    ws.send(JSON.stringify({
+        cmd: 'DE_AUTHENTICATE'
+    }));
+}
+
+function draw() {
+    var canvas = document.getElementById('map');
+    if (canvas.getContext) {
+        var context = canvas.getContext("2d");
+
+        context.fillStyle = "#DDFFDD";
+        context.fillRect(0, 0, 640, 480);
+
+        for (var d in dogs) {
+            var img = document.getElementById('img-' + d);
+            context.drawImage(img, dogs[d].x, dogs[d].y);
+        }
+
+        context.fillStyle = "rgba(200, 0, 100, 0.5)";
+        context.fillRect(cat.x*cell_width, cat.y * cell_height, cell_width, cell_height);
+
+        //grid lines
+        context.lineWidth = '1';
+        for (i = 0; i < canvas.width; i += cell_width) {
+            context.strokeStyle = 'teal';
+            context.beginPath();
+            context.moveTo(i, 0);
+            context.lineTo(i, canvas.height + 10);
+            context.stroke();
+        }
+        for (i = 0; i < canvas.height; i += cell_height) {
+            context.strokeStyle = 'plum';
+            context.beginPath();
+            context.moveTo(0, i);
+            context.lineTo(canvas.width, i);
+            context.stroke();
+        }
+
+        //current mouse cell
+        context.strokeStyle = 'goldenrod';
+        context.lineWidth = '3';
+        context.strokeRect(mouse_x - (mouse_x % cell_width), mouse_y - (mouse_y % cell_height), cell_width, cell_height);
+
+        //selected cell
+        context.strokeStyle = 'firebrick';
+        context.lineWidth = '6';
+        context.strokeRect(selected_cell.x * cell_width, selected_cell.y * cell_height, cell_width, cell_height);
+
+    }
+}
+
+function move(direction) {
+    var msg = {
+        'cmd': 'MOVE',
+        'direction': direction,
+        'distance': 1
+    };
+    ws.send(JSON.stringify(msg));
+}
+
+function resizeCanvas() {
+    var canvas = document.getElementById('map');
+    if (map_height > window.innerHeight) {
+        canvas.height = window.innerHeight * 0.9;
+        canvas.width = (canvas.height / map_height) * map_width;
+    } else if (map_width > window.innerWidth) {
+        canvas.width = window.innerWidth * 0.9;
+        canvas.height = (canvas.width / map_width) * map_height;
+    } else {
+        canvas.width = map_width;
+        canvas.height = map_height;
+    }
+    cell_width = canvas.width / num_x_cells;
+    cell_height = canvas.height / num_y_cells;
+
+    draw();
+}
+
+function getMousePos(canvas, evt) {
+    var rect = canvas.getBoundingClientRect();
+    mouse_x = (evt.clientX - rect.left) / (rect.right - rect.left) * canvas.width;
+    mouse_y = (evt.clientY - rect.top) / (rect.bottom - rect.top) * canvas.height;
+}
