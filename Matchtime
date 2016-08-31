@@ -149,8 +149,8 @@ sub init_dog {
     my (%args) = @_;
     my $id = $args{id};
     $dogs->{$id}->{name} = $id;
-    $dogs->{$id}->{x}    = int rand(630) + 10;
-    $dogs->{$id}->{y}    = int rand(470) + 10;
+    $dogs->{$id}->{x}    = int rand( $map->{num_x_cells} );
+    $dogs->{$id}->{y}    = int rand( $map->{num_y_cells} );
     return;
 }
 

@@ -98,14 +98,17 @@ function draw() {
     if (canvas.getContext) {
         var context = canvas.getContext("2d");
 
+        // background
         context.fillStyle = "#DDFFDD";
-        context.fillRect(0, 0, 640, 480);
+        context.fillRect(0, 0, map_width, map_height);
 
+        // draw dogs
         for (var d in dogs) {
             var img = document.getElementById('img-' + d);
-            context.drawImage(img, dogs[d].x, dogs[d].y);
+            context.drawImage(img, dogs[d].x*cell_width, dogs[d].y*cell_height,cell_width,cell_height);
         }
 
+        // draw cat
         context.fillStyle = "rgba(200, 0, 100, 0.5)";
         context.fillRect(cat.x*cell_width, cat.y * cell_height, cell_width, cell_height);
 
