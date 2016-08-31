@@ -33,6 +33,8 @@ my $cat = {
 my $map = {
   width => 640,
   height => 480,
+  num_x_cells => 16,
+  num_y_cells => 12,
 };
 
 get '/' => sub {

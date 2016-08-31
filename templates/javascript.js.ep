@@ -3,8 +3,7 @@ document.onreadystatechange = function() {
         // document is ready. Do your stuff here
         var canvas = document.getElementById('map');
         canvas.addEventListener('mousemove', function(evt) {
-            var mousePos = getMousePos(canvas, evt);
-            var message = 'Selected: ' + selected_cell.x + ',' + selected_cell.y + ' Canvas: ' + canvas.width + ', ' + canvas.height + '';
+            getMousePos(canvas, evt);
             draw();
         },
         false);
@@ -17,6 +16,7 @@ document.onreadystatechange = function() {
         },
         false);
         resizeCanvas();
+        window.addEventListener('resize', resizeCanvas, false);
     }
 };
 
@@ -27,15 +27,13 @@ var cat = {};
 
 var map_width = <%= $map->{width} %>;
 var map_height = <%= $map->{height} %>;
-var num_x_cells = 16;
-var num_y_cells = 12;
+var num_x_cells = <%= $map->{num_x_cells} %>;
+var num_y_cells = <%= $map->{num_y_cells} %>;
 var cell_width = map_width / num_x_cells;
 var cell_height = map_height / num_y_cells;
 var mouse_x = 0;
 var mouse_y = 0;
 var selected_cell = {};
-
-window.addEventListener('resize', resizeCanvas, false);
 
 // Incoming messages
 ws.onmessage = function(event) {
@@ -76,7 +74,6 @@ ws.onopen = function(event) {
 ws.onclose = function(event) {
     document.getElementById('wow').innerHTML = 'lost connection <a href="javascript:window.location.href=window.location.href">reload</a>';
 };
-
 
 function login() {
     var name = document.getElementById('name').value;
