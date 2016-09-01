@@ -175,14 +175,15 @@ __DATA__
 @@ index.html.ep
 % layout 'default';
 % title 'mat.chti.me';
+<canvas id='map' width='<%= $map->{width} %>' height='<%= $map->{height} %>'></canvas>
+<p>
+  <button id='up' onclick="move('up');">up</button>
+  <button id='down' onclick="move('down');">down</button>
+  <button id='left' onclick="move('left');">left</button>
+  <button id='right' onclick="move('right');">right</button>
+</p>
 <h1>mat.chti.me</h1>
 <p id='wow'>wow</p>
-<canvas id='map' width='<%= $map->{width} %>' height='<%= $map->{height} %>'></canvas>
-<br/>
-<button id='up' onclick="move('up');">up</button>
-<button id='down' onclick="move('down');">down</button>
-<button id='left' onclick="move('left');">left</button>
-<button id='right' onclick="move('right');">right</button>
 <p id='list'>list</p>
 <button id='login' onclick="login();">auth</button>
 <button id='logout' onclick="logout();">deauth</button>
@@ -195,5 +196,7 @@ __DATA__
   <head><title><%= title %></title></head>
   <body>
     <script src="javascript.js"></script>
-    <%= content %>🐄</body>
+    <%= content %>
+    🐄
+  </body>
 </html>
