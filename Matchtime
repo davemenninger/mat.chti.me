@@ -107,14 +107,15 @@ sub do_msg {
       }
       when ('MOVE'){
         if ( $c->is_user_authenticated ) {
-            move_cat(
+            move_entity(
+                entity => \$cat,
                 direction => $json_msg->{direction},
                 distance  => $json_msg->{distance}
             );
         }
         else {
-            move_dog(
-                id        => $id,
+            move_entity(
+                entity => \$dogs->{$id},
                 direction => $json_msg->{direction},
                 distance  => $json_msg->{distance}
             );
@@ -154,24 +155,16 @@ sub init_dog {
     return;
 }
 
-sub move_dog {
+sub move_entity {
   my (%args) = @_;
 
-  $dogs->{$args{id}}->{y} -= ( $args{direction} eq 'up') ? $args{distance} : 0;
-  $dogs->{$args{id}}->{y} += ( $args{direction} eq 'down') ? $args{distance} : 0;
-  $dogs->{$args{id}}->{x} -= ( $args{direction} eq 'left') ? $args{distance} : 0;
-  $dogs->{$args{id}}->{x} += ( $args{direction} eq 'right') ? $args{distance} : 0;
+  ${$args{entity}}->{y} -= ( $args{direction} eq 'up') ? $args{distance} : 0;
+  ${$args{entity}}->{y} += ( $args{direction} eq 'down') ? $args{distance} : 0;
+  ${$args{entity}}->{x} -= ( $args{direction} eq 'left') ? $args{distance} : 0;
+  ${$args{entity}}->{x} += ( $args{direction} eq 'right') ? $args{distance} : 0;
 
-  return;
-}
-
-sub move_cat {
-  my (%args) = @_;
-
-  $cat->{y} -= ( $args{direction} eq 'up') ? $args{distance} : 0;
-  $cat->{y} += ( $args{direction} eq 'down') ? $args{distance} : 0;
-  $cat->{x} -= ( $args{direction} eq 'left') ? $args{distance} : 0;
-  $cat->{x} += ( $args{direction} eq 'right') ? $args{distance} : 0;
+  ${$args{entity}}->{y} %= $map->{num_y_cells};
+  ${$args{entity}}->{x} %= $map->{num_x_cells};
 
   return;
 }
