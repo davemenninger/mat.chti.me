@@ -158,21 +158,34 @@ function move(direction) {
 function resizeCanvas() {
     var canvas = document.getElementById('map');
 
-    if (map_height > window.innerHeight * 0.8) {
+    if ( canvas.height > window.innerHeight * 0.8) {
         // window too short
         canvas.height = window.innerHeight * 0.8;
         canvas.width = (canvas.height / map_height) * map_width;
-    } else if (map_width > window.innerWidth * 0.8) {
+    } else if (canvas.width > window.innerWidth * 0.8) {
         // window too thin
         canvas.width = window.innerWidth * 0.8;
         canvas.height = (canvas.width / map_width) * map_height;
-    } else {
-        // window plenty large, base size on height
-        //canvas.width = window.innerWidth * 0.8;
-        //canvas.height = (canvas.width / map_width) * map_height;
-        canvas.height = window.innerHeight * 0.8;
-        canvas.width = (canvas.height / map_height) * map_width;
     }
+    /* else {
+        // window plenty large
+        if ( (canvas.width/map_width) * map_height > window.innerHeight * 0.8 )
+        {
+            // height would end up too big
+            canvas.height = window.innerHeight * 0.8;
+            canvas.width = (canvas.height / map_height) * map_width;
+        } else if ( (canvas.height / map_height) * map_width > window.innerWidth * 0.8 )
+        {
+            // width would end up too wide
+            canvas.width = window.innerWidth * 0.8;
+            canvas.height = (canvas.width / map_width) * map_height;
+        } else
+        {
+            canvas.height = map_height;
+            canvas.width = map_width;
+        }
+    }
+    */
     cell_width = canvas.width / num_x_cells;
     cell_height = canvas.height / num_y_cells;
 
