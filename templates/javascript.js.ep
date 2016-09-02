@@ -2,11 +2,13 @@ document.onreadystatechange = function() {
     if (document.readyState == "complete") {
         // document is ready. Do your stuff here
         var canvas = document.getElementById('map');
+
         canvas.addEventListener('mousemove', function(evt) {
             getMousePos(canvas, evt);
             draw();
         },
         false);
+
         canvas.addEventListener('click', function(event) {
             selected_cell = {
                 x: Math.floor(mouse_x / cell_width),
@@ -15,7 +17,9 @@ document.onreadystatechange = function() {
             draw();
         },
         false);
+
         resizeCanvas();
+
         window.addEventListener('resize', resizeCanvas, false);
     }
 };
@@ -100,7 +104,7 @@ function draw() {
 
         // background
         context.fillStyle = "#DDFFDD";
-        context.fillRect(0, 0, map_width, map_height);
+        context.fillRect(0, 0, canvas.width, canvas.height);
 
         // draw dogs
         for (var d in dogs) {
@@ -153,15 +157,21 @@ function move(direction) {
 
 function resizeCanvas() {
     var canvas = document.getElementById('map');
-    if (map_height > window.innerHeight) {
-        canvas.height = window.innerHeight * 0.9;
+
+    if (map_height > window.innerHeight * 0.8) {
+        // window too short
+        canvas.height = window.innerHeight * 0.8;
         canvas.width = (canvas.height / map_height) * map_width;
-    } else if (map_width > window.innerWidth) {
-        canvas.width = window.innerWidth * 0.9;
+    } else if (map_width > window.innerWidth * 0.8) {
+        // window too thin
+        canvas.width = window.innerWidth * 0.8;
         canvas.height = (canvas.width / map_width) * map_height;
     } else {
-        canvas.width = map_width;
-        canvas.height = map_height;
+        // window plenty large, base size on height
+        //canvas.width = window.innerWidth * 0.8;
+        //canvas.height = (canvas.width / map_width) * map_height;
+        canvas.height = window.innerHeight * 0.8;
+        canvas.width = (canvas.height / map_height) * map_width;
     }
     cell_width = canvas.width / num_x_cells;
     cell_height = canvas.height / num_y_cells;

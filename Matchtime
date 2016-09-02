@@ -57,7 +57,7 @@ websocket '/dog' => sub {
     $clients->{$id} = $c->tx;
     app->log->debug( 'id: ' . $id );
 
-    init_dog( id => $id);
+    init_dog( id => $id );
 
     # Opened
     $c->app->log->debug('WebSocket opened');
@@ -72,7 +72,7 @@ websocket '/dog' => sub {
             $c->app->log->debug("incoming: $msg");
             if ( my $j = decode_json $msg ) {
                 app->log->debug( $j->{cmd} );
-                do_msg( c => $c , j => $j );
+                do_msg( c => $c, j => $j );
             }
             update_clients();
         }
@@ -166,6 +166,13 @@ sub move_entity {
   ${$args{entity}}->{y} %= $map->{num_y_cells};
   ${$args{entity}}->{x} %= $map->{num_x_cells};
 
+  # calculate new position
+  # if new position legal, set pos = new postion
+  # else, pos = old pos
+  #
+  # position is legal if: no other entity is in that position ( besides self )
+  # for each entity in the world, is it in new_postion
+
   return;
 }
 
@@ -177,10 +184,10 @@ __DATA__
 % title 'mat.chti.me';
 <canvas id='map' width='<%= $map->{width} %>' height='<%= $map->{height} %>'></canvas>
 <p>
-  <button id='up' onclick="move('up');">up</button>
-  <button id='down' onclick="move('down');">down</button>
-  <button id='left' onclick="move('left');">left</button>
-  <button id='right' onclick="move('right');">right</button>
+  <button class='direction_button' id='up' onclick="move('up');">up</button>
+  <button class='direction_button' id='down' onclick="move('down');">down</button>
+  <button class='direction_button' id='left' onclick="move('left');">left</button>
+  <button class='direction_button' id='right' onclick="move('right');">right</button>
 </p>
 <h1>mat.chti.me</h1>
 <p id='wow'>wow</p>
@@ -194,9 +201,17 @@ __DATA__
 <!DOCTYPE html>
 <html>
   <head><title><%= title %></title></head>
+  <style>
+  button {
+  width: 20vw;
+  height: 10vh;
+  }
+  </style>
   <body>
     <script src="javascript.js"></script>
     <%= content %>
-    🐄
+    <p>
+    🐄 
+    </p>
   </body>
 </html>
